@@ -2,11 +2,13 @@ import zipfile
 
 from fastapi import FastAPI, UploadFile, File
 from typing import Union
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+
 import uvicorn
 import os
 
 app = FastAPI()
+
 #сюда попадут все файлы
 UPLOAD_DIR = './ups/'
 
@@ -35,7 +37,7 @@ async def upload_file(file: UploadFile):
         with zipfile.ZipFile(path, 'r') as zip_ref:
             zip_ref.extractall(UPLOAD_DIR)
         os.remove(path)
-    return {"filename": file.filename}
+    return RedirectResponse("/", status_code=302)#{"filename": file.filename}
 
 
 if __name__ == '__main__':
