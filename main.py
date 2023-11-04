@@ -1,23 +1,22 @@
 import zipfile
+from fastapi.staticfiles import StaticFiles
 
 from fastapi import FastAPI, UploadFile, File
 from typing import Union
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 
 import uvicorn
 import os
 
 app = FastAPI()
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 #сюда попадут все файлы
 UPLOAD_DIR = './ups/'
 
 
 @app.get("/")
 def read_root():
-    with open("./static/index.html") as f:
-        data = f.read()
-    return HTMLResponse(content=data)
+    return FileResponse("./static/index.html")
 
 
 @app.get("/items/{item_id}")
