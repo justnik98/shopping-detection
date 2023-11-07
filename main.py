@@ -1,42 +1,30 @@
-import random
-import time
-import copy
-import zipfile
 import cv2
+from fastapi import FastAPI, UploadFile, Request
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi import Request
-from fastapi import FastAPI, UploadFile, File
-from typing import Union
-from fastapi.responses import RedirectResponse, FileResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-
+import os
+import random
+from typing import Union
 from ultralytics import YOLO
 import uvicorn
-import os
+import zipfile
+
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
 # сюда попадут все файлы
 UPLOAD_DIR = './ups/'
 
-templates = Jinja2Templates(directory="templates")
-
 some_file_path = "./static/test.mp4"
+
 cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/test.mp4")
 
 
-#cap = cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1")
-# url_rtsp = 'rtsp://127.0.0.1:8554/screenlive'
+# cap = cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1")
 
-# def iterfile():
-#     cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/screenlive")
-#     while (cap.isOpened()):
-#         time.sleep(0.2)
-#         ret, frame = cap.read()
-#         print(frame)
-#         print(type(frame))
-#         cv2.imshow('frame', frame)
-#         yield frame
 @app.get("/")
 def read_root(request: Request):
     # return FileResponse("./static/index.html")
@@ -45,8 +33,8 @@ def read_root(request: Request):
 
 def model(frame):
     model_path = "./weights/best.pt"
-    model = YOLO(model_path)
-    detections = model.predict(frame, imgsz=(640, 384))
+    _model = YOLO(model_path)
+    detections = _model.predict(frame, imgsz=(640, 384))
     res = []
     for detected_boxes in detections[0]:
         list_ = detected_boxes.boxes.xyxy[0].tolist()
@@ -94,27 +82,17 @@ def video_feed():
                 for rec in res:
                     cv2.rectangle(frame, rec[0], rec[1], thickness=3, color=(0, 0, 255))
                 count -= n
-                # Иммитация обработки
-            # print(frame)
-            # print(type(frame))
-            # time.sleep(0.002)
-            # cv2.imshow('frame', frame)
 
-            (flag, encodedImage) = cv2.imencode(".jpg", frame)
             # res = mock_nn()
-            # (flag, encodedImage) = cv2.imencode(".jpg", frame)
+
+            (flag, encoded_image) = cv2.imencode(".jpg", frame)
 
             if not flag:
                 continue
             if cv2.waitKey(20) & 0xFF == ord('q'):
                 break
             yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
-                   bytearray(encodedImage) + b'\r\n')
-
-            # frame = imutils.resize(frame, width=680)
-
-        # with open(some_file_path, mode="rb") as file_like:  #
-        #     yield from file_like  #
+                   bytearray(encoded_image) + b'\r\n')
 
     return StreamingResponse(iterfile(), media_type="multipart/x-mixed-replace;boundary=frame")
 
@@ -136,7 +114,7 @@ async def upload_file(file: UploadFile):
         with zipfile.ZipFile(path, 'r') as zip_ref:
             zip_ref.extractall(UPLOAD_DIR)
         os.remove(path)
-    return RedirectResponse("/", status_code=302)  # {"filename": file.filename}
+    return RedirectResponse("/", status_code=302)
 
 
 if __name__ == '__main__':
