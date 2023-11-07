@@ -1,5 +1,6 @@
 import random
 import time
+import copy
 import zipfile
 import cv2
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +10,7 @@ from typing import Union
 from fastapi.responses import RedirectResponse, FileResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
+from ultralytics import YOLO
 import uvicorn
 import os
 
@@ -23,7 +25,7 @@ some_file_path = "./static/test.mp4"
 cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/test.mp4")
 
 
-# cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/test.mp4 !queue ! decodebin ! videoconvert ! appsink max-buffers=1 drop=true")
+#cap = cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1")
 # url_rtsp = 'rtsp://127.0.0.1:8554/screenlive'
 
 # def iterfile():
@@ -41,34 +43,66 @@ def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "id": 2})
 
 
-@app.get("/video")
-async def video_feed():
+def model(frame):
+    model_path = "./weights/best.pt"
+    model = YOLO(model_path)
+    detections = model.predict(frame, imgsz=(640, 384))
+    res = []
+    for detected_boxes in detections[0]:
+        list_ = detected_boxes.boxes.xyxy[0].tolist()
+        bbox = ((int(list_[0]), int(list_[1])), (int(list_[2]), int(list_[3])))
+        print(bbox)
+        print(type(bbox[0][0]))
+        res.append(bbox)
+    return res
 
+
+@app.get("/video")
+def video_feed():
+    def mock_nn():  # заменяем рандомом BB
+        res = []
+        r = random.random()
+        while r < 0.3:
+            x1 = 1240 + random.randint(-200, 200)
+            y1 = 637 + random.randint(-200, 200)
+            x2 = 225 + random.randint(-200, 200)
+            y2 = 897 + random.randint(-200, 200)
+            res.append(((x1, y1), (x2, y2)))
+            r = random.random()
+        return res
 
     def iterfile():  #
         count = 0
-        n = 1
+        n = 120
+        k = 5
         while (cap.isOpened()):
             # скипаем кадры в буфере (какой чудак придумал стримить по TCP)
-            for i in range(5):
+            for i in range(k):
                 cap.grab()
+                count += 1
             ret, frame = cap.read()
+            dim = (640, 384)
+            resized = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+            # print(count)
+            # print(ret)
+            if not ret:
+                continue
             count += 1
             # тут будем скипать кадры для отправки в модель
-            if count % n != 0:
-                continue
-            else:
+            if count % n == 0:
+                res = model(frame)
+                for rec in res:
+                    cv2.rectangle(frame, rec[0], rec[1], thickness=3, color=(0, 0, 255))
                 count -= n
-            time.sleep(0.05)  # Иммитация обработки
+                # Иммитация обработки
             # print(frame)
             # print(type(frame))
             # time.sleep(0.002)
             # cv2.imshow('frame', frame)
-            outputFrame = frame
-            cv2.rectangle(frame, (1240 + random.randint(-200, 200), 637 + random.randint(-200, 200)),
-                          (225 + random.randint(-200, 200), 897 + random.randint(-200, 200)), thickness=3,
-                          color=(0, 0, 255))
-            (flag, encodedImage) = cv2.imencode(".jpg", outputFrame)
+
+            (flag, encodedImage) = cv2.imencode(".jpg", frame)
+            # res = mock_nn()
+            # (flag, encodedImage) = cv2.imencode(".jpg", frame)
 
             if not flag:
                 continue
