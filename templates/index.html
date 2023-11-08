@@ -22,11 +22,61 @@
     </form>
 </div>
 <div>
-    <img src="{{ url_for('video_feed') }}" width="640" height="384">
-    <!--    <video width="1200" controls muted="muted">-->
-    <!--        <source src="http://localhost:8000/video" type="video/mp4"/>-->
-    <!--    </video>-->
+    <form method="post" action="/add_source">
+        <p><input placeholder="Логин" name="login" value="admin"> <input placeholder="Пароль" type="password"
+                                                                         name="password" value="A1234567">
+            <input placeholder="URL" name="url"
+                   value="188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"> <input
+                    value="Добавить камеру" type="submit"></p>
+    </form>
 </div>
-
+<div>
+    <table>
+        <tr>
+            <td>
+                <div>
+                    <img src="/video/0" width="420" height="360">
+                </div>
+            </td>
+            <td>
+                <div>
+                    <img src="/video/1" width="420" height="360">
+                </div>
+            </td>
+            <td>
+                <div>
+                    <img src="/video/2" width="420" height="360">
+                </div>
+            </td>
+            <td>
+                <div>
+                    <img src="/video/3" width="420" height="360">
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div>
+                    <img src="/video/4" width="420" height="360">
+                </div>
+            </td>
+            <td>
+                <div>
+                    <img src="/video/5" width="420" height="360">
+                </div>
+            </td>
+            <td>
+                <div>
+                    <img src="/video/6" width="420" height="360">
+                </div>
+            </td>
+            <td>
+                <div>
+                    <img src="/video/7" width="420" height="360">
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
 </body>
 </html>

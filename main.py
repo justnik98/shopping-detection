@@ -1,5 +1,5 @@
 import cv2
-from fastapi import FastAPI, UploadFile, Request
+from fastapi import FastAPI, UploadFile, Request, Form
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -9,7 +9,7 @@ from typing import Union
 from ultralytics import YOLO
 import uvicorn
 import zipfile
-
+from imutils.video import VideoStream
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -20,7 +20,13 @@ UPLOAD_DIR = './ups/'
 
 some_file_path = "./static/test.mp4"
 
-cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/test.mp4")
+# cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/test.mp4")
+
+cap = []
+
+
+# cap.append(cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"))
+# cap.append(cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8028/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"))
 
 
 # cap = cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1")
@@ -45,8 +51,11 @@ def model(frame):
     return res
 
 
-@app.get("/video")
-def video_feed():
+@app.get("/video/{item_id}")
+async def video_feed(item_id: int):
+    index = item_id
+    print(index)
+
     def mock_nn():  # заменяем рандомом BB
         res = []
         r = random.random()
@@ -59,22 +68,23 @@ def video_feed():
             r = random.random()
         return res
 
-    def iterfile():  #
+    def iterfile(index: int):  #
         count = 0
-        n = 120
+        n = 12000
         k = 5
-        while (cap.isOpened()):
+
+        if index >= len(cap):
+            return
+        while cap[index]:
             # скипаем кадры в буфере (какой чудак придумал стримить по TCP)
             for i in range(k):
-                cap.grab()
+                cap[index].read()
                 count += 1
-            ret, frame = cap.read()
-            dim = (640, 384)
-            resized = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+            frame = cap[index].read()
+            if frame is None :
+                continue
             # print(count)
             # print(ret)
-            if not ret:
-                continue
             count += 1
             # тут будем скипать кадры для отправки в модель
             if count % n == 0:
@@ -94,7 +104,7 @@ def video_feed():
             yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
                    bytearray(encoded_image) + b'\r\n')
 
-    return StreamingResponse(iterfile(), media_type="multipart/x-mixed-replace;boundary=frame")
+    return StreamingResponse(iterfile(index), media_type="multipart/x-mixed-replace;boundary=frame")
 
 
 @app.get("/items/{item_id}")
@@ -114,6 +124,17 @@ async def upload_file(file: UploadFile):
         with zipfile.ZipFile(path, 'r') as zip_ref:
             zip_ref.extractall(UPLOAD_DIR)
         os.remove(path)
+    return RedirectResponse("/", status_code=302)
+
+
+@app.post("/add_source")
+def add_source(login=Form(), password=Form(), url=Form()):
+    res = f"rtsp://{login}:{password}@{url}"
+    print(f"cap len = {len(cap)}")
+    if len(cap) > 8:
+        cap[0] = cv2.VideoCapture(res)
+    else:
+        cap.append(VideoStream(res).start())
     return RedirectResponse("/", status_code=302)
 
 
