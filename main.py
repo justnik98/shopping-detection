@@ -18,22 +18,11 @@ templates = Jinja2Templates(directory="templates")
 # сюда попадут все файлы
 UPLOAD_DIR = './ups/'
 
-some_file_path = "./static/test.mp4"
-
-# cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/test.mp4")
-
 cap = []
 
 
-# cap.append(cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"))
-# cap.append(cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8028/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"))
-
-
-# cap = cv2.VideoCapture("rtsp://admin:A1234567@188.170.176.190:8027/Streaming/Channels/101?transportmode=unicast&profile=Profile_1")
-
 @app.get("/")
 def read_root(request: Request):
-    # return FileResponse("./static/index.html")
     return templates.TemplateResponse("index.html", {"request": request, "id": 2})
 
 
@@ -56,17 +45,17 @@ async def video_feed(item_id: int):
     index = item_id
     print(index)
 
-    def mock_nn():  # заменяем рандомом BB
-        res = []
-        r = random.random()
-        while r < 0.3:
-            x1 = 1240 + random.randint(-200, 200)
-            y1 = 637 + random.randint(-200, 200)
-            x2 = 225 + random.randint(-200, 200)
-            y2 = 897 + random.randint(-200, 200)
-            res.append(((x1, y1), (x2, y2)))
-            r = random.random()
-        return res
+    # def mock_nn():  # заменяем рандомом BB
+    #     res = []
+    #     r = random.random()
+    #     while r < 0.3:
+    #         x1 = 1240 + random.randint(-200, 200)
+    #         y1 = 637 + random.randint(-200, 200)
+    #         x2 = 225 + random.randint(-200, 200)
+    #         y2 = 897 + random.randint(-200, 200)
+    #         res.append(((x1, y1), (x2, y2)))
+    #         r = random.random()
+    #     return res
 
     def iterfile(index: int):  #
         count = 0
@@ -81,19 +70,16 @@ async def video_feed(item_id: int):
                 cap[index].read()
                 count += 1
             frame = cap[index].read()
-            if frame is None :
+            if frame is None:
                 continue
-            # print(count)
-            # print(ret)
             count += 1
-            # тут будем скипать кадры для отправки в модель
+
+            # скипаем кадры для отправки в модель для детектирвоания
             if count % n == 0:
                 res = model(frame)
                 for rec in res:
                     cv2.rectangle(frame, rec[0], rec[1], thickness=3, color=(0, 0, 255))
                 count -= n
-
-            # res = mock_nn()
 
             (flag, encoded_image) = cv2.imencode(".jpg", frame)
 
