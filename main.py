@@ -1,21 +1,24 @@
+"""
+This is an example of my message
+"""
+
+import os
+import zipfile
+from typing import Union
+
 import cv2
+import uvicorn
 from fastapi import FastAPI, UploadFile, Request, Form
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import os
-import random
-from typing import Union
-from ultralytics import YOLO
-import uvicorn
-import zipfile
 from imutils.video import VideoStream
+from ultralytics import YOLO
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# сюда попадут все файлы
 UPLOAD_DIR = './ups/'
 
 cap = []
@@ -23,10 +26,28 @@ cap = []
 
 @app.get("/")
 def read_root(request: Request):
+    """
+    Обрабатывает get-запрос основной страницы сервиса.
+
+    Args:
+        request: get-запрос
+
+    Returns:
+        Nothing
+    """
     return templates.TemplateResponse("index.html", {"request": request, "id": 2})
 
 
 def model(frame):
+    """
+    Предобученная модель, распознающая на картинке объекты нестационарной торговли.
+
+    Args:
+        frame: изображение (стопкадр из видео)
+
+    Returns:
+        Список прямоугольников, ограничивающих объекты нестационарной торговли на кадре
+    """
     model_path = "./weights/best.pt"
     _model = YOLO(model_path)
     detections = _model.predict(frame, imgsz=(640, 384), conf=0.26)
@@ -42,24 +63,31 @@ def model(frame):
 
 @app.get("/video/{item_id}")
 async def video_feed(item_id: int):
+    """
+        Обрабатывает get-запрос для видеострима.
+            Вызывает метод обработки видеопотока.
+
+        Args:
+            index: индекс стрима (номер подключенный камеры или видео)
+
+        Returns:
+            Кадр с размеченными областями в которых находятся объекты нестационарной торговли.
+        """
     index = item_id
     print(index)
 
-    # def mock_nn():  # заменяем рандомом BB
-    #     res = []
-    #     r = random.random()
-    #     while r < 0.3:
-    #         x1 = 1240 + random.randint(-200, 200)
-    #         y1 = 637 + random.randint(-200, 200)
-    #         x2 = 225 + random.randint(-200, 200)
-    #         y2 = 897 + random.randint(-200, 200)
-    #         res.append(((x1, y1), (x2, y2)))
-    #         r = random.random()
-    #     return res
-
     def iterfile(index: int):  #
+        """
+            Метод обработки видеопотока.
+
+        Args:
+            index: индекс стрима (номер подключенный камеры или видео)
+
+        Returns:
+            Кадр с размеченными областями в которых находятся объекты нестационарной торговли.
+        """
         count = 0
-        n = 12000
+        n = 250
         k = 5
 
         if index >= len(cap):
@@ -93,13 +121,19 @@ async def video_feed(item_id: int):
     return StreamingResponse(iterfile(index), media_type="multipart/x-mixed-replace;boundary=frame")
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
-
-
 @app.post("/upload-files")
 async def upload_file(file: UploadFile):
+    """
+    Обрабатывает get-запрос загрузки файлов.
+    Позволяет загружать файлы на сервер.
+    Перенаправляет на основную страницу и добавляет на нее стим с подключенной камеры.
+
+    Args:
+        file:  название файла (mp4 or zip)
+    Returns:
+        Nothing
+    """
+
     if file.filename == "":
         return "error-42"
     data = file.file
@@ -110,11 +144,25 @@ async def upload_file(file: UploadFile):
         with zipfile.ZipFile(path, 'r') as zip_ref:
             zip_ref.extractall(UPLOAD_DIR)
         os.remove(path)
+    cap.append(VideoStream(path).start())
     return RedirectResponse("/", status_code=302)
 
 
 @app.post("/add_source")
 def add_source(login=Form(), password=Form(), url=Form()):
+    """
+    Обрабатывает get-запрос добавления источника видео (RTSP камеры).
+    Добавляет источник на панель стримов.
+    Перенаправляет на основную страницу и добавляет на нее стим с подключенной камеры.
+
+    Args:
+        login: логин (может быть пустым)
+        password: пароль камеры (может быть пустым)
+        url: (ip и порт камеры)
+
+    Returns:
+        Nothing
+    """
     res = f"rtsp://{login}:{password}@{url}"
     print(f"cap len = {len(cap)}")
     if len(cap) > 8:
