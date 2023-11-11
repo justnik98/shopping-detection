@@ -29,7 +29,7 @@ def read_root(request: Request):
 def model(frame):
     model_path = "./weights/best.pt"
     _model = YOLO(model_path)
-    detections = _model.predict(frame, imgsz=(640, 384), conf=0.30)
+    detections = _model.predict(frame, imgsz=(640, 384), conf=0.26)
     res = []
     for detected_boxes in detections[0]:
         list_ = detected_boxes.boxes.xyxy[0].tolist()
